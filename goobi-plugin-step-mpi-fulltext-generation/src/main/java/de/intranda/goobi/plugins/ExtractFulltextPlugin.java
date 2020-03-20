@@ -1,5 +1,6 @@
 package de.intranda.goobi.plugins;
 
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,6 +15,12 @@ import org.goobi.production.enums.PluginReturnValue;
 import org.goobi.production.enums.PluginType;
 import org.goobi.production.enums.StepReturnValue;
 import org.goobi.production.plugin.interfaces.IStepPluginVersion2;
+import org.jdom2.Document;
+import org.jdom2.Element;
+import org.jdom2.JDOMException;
+import org.jdom2.input.SAXBuilder;
+import org.jdom2.output.Format;
+import org.jdom2.output.XMLOutputter;
 
 import de.sub.goobi.helper.StorageProvider;
 import de.sub.goobi.helper.exceptions.DAOException;
@@ -46,25 +53,117 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
     @Override
     public PluginReturnValue run() {
         Process process = step.getProzess();
-        //id:309485
+        // id:309485
         try {
+            Path textFolder = Paths.get(process.getOcrTxtDirectory());
             Fileformat fileformat = process.readMetadataFile();
             DocStruct physicalDocstruct = fileformat.getDigitalDocument().getPhysicalDocStruct();
             List<DocStruct> pages = physicalDocstruct.getAllChildren();
-            for (DocStruct page : pages) {
-                for (Metadata md : page.getAllMetadata()) {
-                    if (md.getType().getName().equals("_tei_text")) {
-                        Path textFolder = Paths.get(process.getOcrTxtDirectory());
-                        if (!StorageProvider.getInstance().isDirectory(textFolder)) {
-                            StorageProvider.getInstance().createDirectories(textFolder);
+
+            // check if tei.xml exists
+            Path teiFile = Paths.get(process.getImagesDirectory(), "source", "tei.xml");
+            if (StorageProvider.getInstance().isFileExists(teiFile)) {
+                if (!StorageProvider.getInstance().isDirectory(textFolder)) {
+                    StorageProvider.getInstance().createDirectories(textFolder);
+                }
+
+                Path tempDirectory = Files.createTempDirectory(textFolder, "tmp");
+
+                ProcessBuilder processBuilder = new ProcessBuilder();
+                processBuilder.command("/opt/digiverso/goobi/xslt/dlc-converter/bin/teitohtml", teiFile.toString(),
+                        Paths.get(tempDirectory.toString(), "tmp-xml").toString());
+                java.lang.Process proc = processBuilder.start();
+                if (proc.waitFor() != 0) {
+                    return PluginReturnValue.ERROR;
+                }
+
+                SAXBuilder builder = new SAXBuilder();
+
+                List<Path> createdFiles = StorageProvider.getInstance().listFiles(tempDirectory.toString());
+                for (DocStruct page : pages) {
+                    String imageNo = null;
+                    for (Metadata md : page.getAllMetadata()) {
+                        if (md.getType().getName().equals("physPageNumber")) {
+                            imageNo = md.getValue();
                         }
-                        String filename =page.getImageName();
-                        filename= filename.substring(0, filename.indexOf("."));
-                        Path txtFile = Paths.get(textFolder.toString(), filename + ".txt");
-                        byte[] strToBytes = md.getValue().getBytes();
-                        Files.write(txtFile, strToBytes);
+                    }
+
+                    String suffix = null;
+                    switch (imageNo.length()) {
+                        case 1:
+                            suffix = "_000" + imageNo + ".html";
+                            break;
+                        case 2:
+                            suffix = "_00" + imageNo + ".html";
+                            break;
+                        case 3:
+                            suffix = "_0" + imageNo + ".html";
+                            break;
+                        default:
+                            suffix = "_" + imageNo + ".html";
+                    }
+
+                    String txtFilename = page.getImageName();
+                    txtFilename = txtFilename.substring(0, txtFilename.indexOf(".")) + ".txt";
+
+                    for (Path createdFile : createdFiles) {
+                        // if file is named after expected filename
+                        if (createdFile.getFileName().toString().endsWith(suffix)) {
+                            try {
+                                // open file
+                                Document doc = builder.build(createdFile.toFile());
+                                // find body
+                                Element root = doc.getRootElement();
+                                Element body = null;
+                                for (Element child : root.getChildren()) {
+                                    if (child.getName().equals("body")) {
+                                        body = child;
+                                    }
+
+                                }
+                                // copy content into a new div element
+                                Element div = new Element("div");
+                                List<Element> content = body.getChildren();
+                                for (Element e : content) {
+                                    Element copy = e.clone();
+                                    copy.detach();
+                                    div.addContent(copy);
+                                }
+
+                                // save div as a new text file in textFolder
+                                Document doc2 = new Document();
+                                doc2.setRootElement(div);
+                                XMLOutputter xmlOutput = new XMLOutputter();
+                                xmlOutput.setFormat(Format.getPrettyFormat());
+                                xmlOutput.output(doc2, new FileWriter(Paths.get(textFolder.toString(),txtFilename.toString()).toString()));
+                            } catch (JDOMException e) {
+                                log.error(e);
+                            }
+                        }
+
+                    }
+
+                }
+
+                StorageProvider.getInstance().deleteDir(tempDirectory);
+            } else {
+                // create plain text files
+
+                for (DocStruct page : pages) {
+                    for (Metadata md : page.getAllMetadata()) {
+                        if (md.getType().getName().equals("_tei_text")) {
+                            if (!StorageProvider.getInstance().isDirectory(textFolder)) {
+                                StorageProvider.getInstance().createDirectories(textFolder);
+                            }
+                            String filename = page.getImageName();
+                            filename = filename.substring(0, filename.indexOf("."));
+                            Path txtFile = Paths.get(textFolder.toString(), filename + ".txt");
+                            byte[] strToBytes = md.getValue().getBytes();
+                            Files.write(txtFile, strToBytes);
+                        }
                     }
                 }
+
             }
         } catch (ReadException | PreferencesException | WriteException | IOException | InterruptedException | SwapException | DAOException e) {
             log.error(e);
