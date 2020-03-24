@@ -38,6 +38,7 @@ import ugh.exceptions.WriteException;
 @Log4j2
 @PluginImplementation
 public class ExtractFulltextPlugin implements IStepPluginVersion2 {
+
     @Getter
     private Step step;
     private String returnPath;
@@ -170,7 +171,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
             return PluginReturnValue.ERROR;
         }
 
-        return null;
+        return PluginReturnValue.FINISH;
     }
 
     @Override
