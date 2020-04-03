@@ -63,10 +63,21 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
 
             // check if tei.xml exists
             Path teiFile = Paths.get(process.getImagesDirectory(), "source", "tei.xml");
+            if (!StorageProvider.getInstance().isDirectory(textFolder)) {
+                StorageProvider.getInstance().createDirectories(textFolder);
+            }
+            // cleanup old data
+            List<Path> oldDataInTextFolder = StorageProvider.getInstance().listFiles(textFolder.toString());
+
+            for (Path oldFile : oldDataInTextFolder) {
+                StorageProvider.getInstance().deleteFile(oldFile);
+            }
+
+
+
             if (StorageProvider.getInstance().isFileExists(teiFile)) {
-                if (!StorageProvider.getInstance().isDirectory(textFolder)) {
-                    StorageProvider.getInstance().createDirectories(textFolder);
-                }
+
+
 
                 Path tempDirectory = Files.createTempDirectory(textFolder, "tmp");
 
@@ -105,7 +116,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                     }
 
                     String txtFilename = page.getImageName();
-                    txtFilename = txtFilename.substring(0, txtFilename.indexOf(".")) + ".txt";
+                    txtFilename = txtFilename.substring(0, txtFilename.lastIndexOf(".")) + ".txt";
 
                     for (Path createdFile : createdFiles) {
                         // if file is named after expected filename
@@ -153,11 +164,8 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                 for (DocStruct page : pages) {
                     for (Metadata md : page.getAllMetadata()) {
                         if (md.getType().getName().equals("_tei_text")) {
-                            if (!StorageProvider.getInstance().isDirectory(textFolder)) {
-                                StorageProvider.getInstance().createDirectories(textFolder);
-                            }
                             String filename = page.getImageName();
-                            filename = filename.substring(0, filename.indexOf("."));
+                            filename = filename.substring(0, filename.lastIndexOf("."));
                             Path txtFile = Paths.get(textFolder.toString(), filename + ".txt");
                             byte[] strToBytes = md.getValue().getBytes();
                             Files.write(txtFile, strToBytes);
