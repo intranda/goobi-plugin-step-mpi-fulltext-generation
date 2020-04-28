@@ -2,6 +2,8 @@ package de.intranda.goobi.plugins;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -61,8 +63,18 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
             DocStruct physicalDocstruct = fileformat.getDigitalDocument().getPhysicalDocStruct();
             List<DocStruct> pages = physicalDocstruct.getAllChildren();
 
-            // check if tei.xml exists
-            Path teiFile = Paths.get(process.getImagesDirectory(), "source", "tei.xml");
+            // move old source folder to destination
+            Path oldSourceFolder = Paths.get(process.getImagesDirectory(), "source");
+            Path newSourceFolder = Paths.get(process.getSourceDirectory());
+
+            if (Files.exists(oldSourceFolder)) {
+                // TODO delete newSourceFolder if exists?
+
+                Files.move(oldSourceFolder, newSourceFolder);
+            }
+
+            Path teiFile = Paths.get(newSourceFolder.toString(), "tei.xml");
+
             if (!StorageProvider.getInstance().isDirectory(textFolder)) {
                 StorageProvider.getInstance().createDirectories(textFolder);
             }
@@ -73,10 +85,15 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                 StorageProvider.getInstance().deleteFile(oldFile);
             }
 
-
-
+            // check if tei.xml exists
             if (StorageProvider.getInstance().isFileExists(teiFile)) {
 
+                // remove first line
+                Charset charset = StandardCharsets.UTF_8;
+
+                String teiContent = new String(Files.readAllBytes(teiFile), charset);
+                teiContent = teiContent.replace("<?xml-model href=\"http://dlc-tei.net/p5/DLC-TEI.rng\" type=\"application/xml\" schematypens=\"http://relaxng.org/ns/structure/1.0\"?>", "");
+                Files.write(teiFile, teiContent.getBytes(charset));
 
 
                 Path tempDirectory = Files.createTempDirectory(textFolder, "tmp");
@@ -147,7 +164,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                                 doc2.setRootElement(div);
                                 XMLOutputter xmlOutput = new XMLOutputter();
                                 xmlOutput.setFormat(Format.getPrettyFormat());
-                                xmlOutput.output(doc2, new FileWriter(Paths.get(textFolder.toString(),txtFilename.toString()).toString()));
+                                xmlOutput.output(doc2, new FileWriter(Paths.get(textFolder.toString(), txtFilename.toString()).toString()));
                             } catch (JDOMException e) {
                                 log.error(e);
                             }
