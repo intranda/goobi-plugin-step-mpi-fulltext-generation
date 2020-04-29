@@ -4,12 +4,15 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+import org.apache.commons.lang.StringUtils;
 import org.goobi.beans.Process;
 import org.goobi.beans.Step;
 import org.goobi.production.enums.PluginGuiType;
@@ -20,9 +23,14 @@ import org.goobi.production.plugin.interfaces.IStepPluginVersion2;
 import org.jdom2.Document;
 import org.jdom2.Element;
 import org.jdom2.JDOMException;
+import org.jdom2.Namespace;
+import org.jdom2.filter.Filters;
 import org.jdom2.input.SAXBuilder;
+import org.jdom2.input.sax.XMLReaders;
 import org.jdom2.output.Format;
 import org.jdom2.output.XMLOutputter;
+import org.jdom2.xpath.XPathExpression;
+import org.jdom2.xpath.XPathFactory;
 
 import de.sub.goobi.helper.StorageProvider;
 import de.sub.goobi.helper.exceptions.DAOException;
@@ -52,6 +60,10 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
 
     @Getter
     private PluginGuiType pluginGuiType = PluginGuiType.NONE;
+
+    private Namespace tei = Namespace.getNamespace("tei", "http://www.tei-c.org/ns/1.0");
+    private Namespace xml = Namespace.getNamespace("xml", "http://www.w3.org/XML/1998/namespace");
+    private XPathFactory xpathFactory = XPathFactory.instance();
 
     @Override
     public PluginReturnValue run() {
@@ -92,9 +104,10 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                 Charset charset = StandardCharsets.UTF_8;
 
                 String teiContent = new String(Files.readAllBytes(teiFile), charset);
-                teiContent = teiContent.replace("<?xml-model href=\"http://dlc-tei.net/p5/DLC-TEI.rng\" type=\"application/xml\" schematypens=\"http://relaxng.org/ns/structure/1.0\"?>", "");
+                teiContent = teiContent.replace(
+                        "<?xml-model href=\"http://dlc-tei.net/p5/DLC-TEI.rng\" type=\"application/xml\" schematypens=\"http://relaxng.org/ns/structure/1.0\"?>",
+                        "");
                 Files.write(teiFile, teiContent.getBytes(charset));
-
 
                 Path tempDirectory = Files.createTempDirectory(textFolder, "tmp");
 
@@ -108,7 +121,13 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
 
                 SAXBuilder builder = new SAXBuilder();
 
-                List<Path> createdFiles = StorageProvider.getInstance().listFiles(tempDirectory.toString());
+                // ignore facs.* files
+                List<Path> createdFiles = StorageProvider.getInstance().listFiles(tempDirectory.toString(), fulltextFileFilter);
+                List<Namespace> namespaces = getNamespaces();
+                Element rootElement = readTeiFile(teiFile);
+
+                // check if file name matches pb id, get filename from facs attibute
+                int imageNumberCounter = 0;
                 for (DocStruct page : pages) {
                     String imageNo = null;
                     for (Metadata md : page.getAllMetadata()) {
@@ -135,43 +154,69 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                     String txtFilename = page.getImageName();
                     txtFilename = txtFilename.substring(0, txtFilename.lastIndexOf(".")) + ".txt";
 
+                    Path foundFile = null;
                     for (Path createdFile : createdFiles) {
                         // if file is named after expected filename
                         if (createdFile.getFileName().toString().endsWith(suffix)) {
-                            try {
-                                // open file
-                                Document doc = builder.build(createdFile.toFile());
-                                // find body
-                                Element root = doc.getRootElement();
-                                Element body = null;
-                                for (Element child : root.getChildren()) {
-                                    if (child.getName().equals("body")) {
-                                        body = child;
+                            foundFile = createdFile;
+                        }
+                    }
+                    if (foundFile == null) {
+                        // try to get it from element in tei file
+                        String imageName = page.getImageName(); // B836F1_001_1885_0229.jpg
+
+                        XPathExpression<Element> expr = xpathFactory.compile("//tei:pb[@facs='" + imageName + "']", Filters.element(), null, namespaces);
+                        Element pb = expr.evaluateFirst(rootElement);
+                        if (pb != null) {
+                            String id = pb.getAttributeValue("id", xml);
+                            if (StringUtils.isNotBlank(id)) {
+                                String filename = id + ".html";
+                                for (Path createdFile : createdFiles) {
+                                    if (createdFile.getFileName().toString().endsWith(filename)) {
+                                        foundFile = createdFile;
                                     }
-
                                 }
-                                // copy content into a new div element
-                                Element div = new Element("div");
-                                List<Element> content = body.getChildren();
-                                for (Element e : content) {
-                                    Element copy = e.clone();
-                                    copy.detach();
-                                    div.addContent(copy);
-                                }
-
-                                // save div as a new text file in textFolder
-                                Document doc2 = new Document();
-                                doc2.setRootElement(div);
-                                XMLOutputter xmlOutput = new XMLOutputter();
-                                xmlOutput.setFormat(Format.getPrettyFormat());
-                                xmlOutput.output(doc2, new FileWriter(Paths.get(textFolder.toString(), txtFilename.toString()).toString()));
-                            } catch (JDOMException e) {
-                                log.error(e);
                             }
                         }
 
                     }
+                    if (foundFile == null && pages.size() == createdFiles.size() ) {
+                        foundFile = createdFiles.get(imageNumberCounter);
+                    }
+                    imageNumberCounter++;
 
+                    if (foundFile != null) {
+                        try {
+                            // open file
+                            Document doc = builder.build(foundFile.toFile());
+                            // find body
+                            Element root = doc.getRootElement();
+                            Element body = null;
+                            for (Element child : root.getChildren()) {
+                                if (child.getName().equals("body")) {
+                                    body = child;
+                                }
+
+                            }
+                            // copy content into a new div element
+                            Element div = new Element("div");
+                            List<Element> content = body.getChildren();
+                            for (Element e : content) {
+                                Element copy = e.clone();
+                                copy.detach();
+                                div.addContent(copy);
+                            }
+
+                            // save div as a new text file in textFolder
+                            Document doc2 = new Document();
+                            doc2.setRootElement(div);
+                            XMLOutputter xmlOutput = new XMLOutputter();
+                            xmlOutput.setFormat(Format.getPrettyFormat());
+                            xmlOutput.output(doc2, new FileWriter(Paths.get(textFolder.toString(), txtFilename.toString()).toString()));
+                        } catch (JDOMException e) {
+                            log.error(e);
+                        }
+                    }
                 }
 
                 StorageProvider.getInstance().deleteDir(tempDirectory);
@@ -237,6 +282,38 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
     @Override
     public int getInterfaceVersion() {
         return 0;
+    }
+
+    public static final DirectoryStream.Filter<Path> fulltextFileFilter = new DirectoryStream.Filter<Path>() {
+        @Override
+        public boolean accept(Path path) {
+            return !path.getFileName().toString().endsWith("facs.html");
+        }
+    };
+
+    private Element readTeiFile(Path file) {
+
+        SAXBuilder builder = new SAXBuilder(XMLReaders.NONVALIDATING);
+        builder.setFeature("http://xml.org/sax/features/validation", false);
+        builder.setFeature("http://apache.org/xml/features/nonvalidating/load-dtd-grammar", false);
+        builder.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+
+        Document doc;
+        try {
+            doc = builder.build(file.toFile());
+            Element item = doc.getRootElement();
+            return item;
+        } catch (JDOMException | IOException e) {
+            log.error(e);
+        }
+        return null;
+    }
+
+    private List<Namespace> getNamespaces() {
+        List<Namespace> namespaces = new ArrayList<>();
+        namespaces.add(tei);
+        namespaces.add(xml);
+        return namespaces;
     }
 
 }
