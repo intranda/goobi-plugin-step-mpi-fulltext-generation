@@ -163,11 +163,12 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                     }
                     if (foundFile == null) {
                         // try to get it from element in tei file
-                        String imageName = page.getImageName(); // B836F1_001_1885_0229.jpg
+                        //                        String imageName = page.getImageName(); // B836F1_001_1885_0229.jpg
 
-                        XPathExpression<Element> expr = xpathFactory.compile("//tei:pb[@facs='" + imageName + "']", Filters.element(), null, namespaces);
-                        Element pb = expr.evaluateFirst(rootElement);
-                        if (pb != null) {
+                        XPathExpression<Element> expr = xpathFactory.compile("//tei:pb", Filters.element(), null, namespaces);
+                        List<Element> pbList = expr.evaluate(rootElement);
+                        if (pbList != null && !pbList.isEmpty()) {
+                            Element pb = pbList.get(imageNumberCounter);
                             String id = pb.getAttributeValue("id", xml);
                             if (StringUtils.isNotBlank(id)) {
                                 String filename = id + ".html";
