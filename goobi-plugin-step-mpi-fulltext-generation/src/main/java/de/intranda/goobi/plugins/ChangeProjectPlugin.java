@@ -51,7 +51,7 @@ public class ChangeProjectPlugin implements IStepPluginVersion2 {
                     log.error(e);
                 }
 
-            } else if (process.getTitel().contains("mpibf_escidoc")) {
+            } else if (process.getTitel().contains("mpib_escidoc")) {
                 try {
                     newProject = ProjectManager.getProjectByName("MPI für Bildungsforschung DLC Import");
                 } catch (DAOException e) {
