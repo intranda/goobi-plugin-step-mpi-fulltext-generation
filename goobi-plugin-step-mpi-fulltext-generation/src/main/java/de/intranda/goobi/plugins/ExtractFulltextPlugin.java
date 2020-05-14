@@ -9,6 +9,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 
@@ -123,6 +125,27 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
 
                 // ignore facs.* files
                 List<Path> createdFiles = StorageProvider.getInstance().listFiles(tempDirectory.toString(), fulltextFileFilter);
+                if (!createdFiles.isEmpty()) {
+                    if (createdFiles.get(0).getFileName().toString().equals("page1.html")) {
+                        Collections.sort(createdFiles, new Comparator<Path>() {
+
+                            @Override
+                            public int compare(Path path1, Path path2) {
+                                String part1 = path1.getFileName().toString().replace("page", "").replace(".html", "");
+                                String part2 = path2.getFileName().toString().replace("page", "").replace(".html", "");
+                                Integer orderNumber1 = 0;
+                                Integer orderNumber2 = 0;
+                                if (StringUtils.isNumeric(part1) && StringUtils.isNumeric(part2)) {
+                                    orderNumber1 = Integer.valueOf(part1);
+                                    orderNumber2 = Integer.valueOf(part2);
+                                }
+
+                                return orderNumber1.compareTo(orderNumber2);
+                            }
+                        });
+                    }
+                }
+
                 List<Namespace> namespaces = getNamespaces();
                 Element rootElement = readTeiFile(teiFile);
 
@@ -288,7 +311,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
     public static final DirectoryStream.Filter<Path> fulltextFileFilter = new DirectoryStream.Filter<Path>() {
         @Override
         public boolean accept(Path path) {
-            return !path.getFileName().toString().endsWith("facs.html");
+            return !path.getFileName().toString().endsWith("facs.html") && !path.getFileName().toString().endsWith("xml");
         }
     };
 
@@ -316,5 +339,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
         namespaces.add(xml);
         return namespaces;
     }
+
+
 
 }
