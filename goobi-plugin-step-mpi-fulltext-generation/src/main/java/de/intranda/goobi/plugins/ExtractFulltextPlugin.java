@@ -67,6 +67,8 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
     private Namespace xml = Namespace.getNamespace("xml", "http://www.w3.org/XML/1998/namespace");
     private XPathFactory xpathFactory = XPathFactory.instance();
 
+    private boolean exportDataWithoutTei = false;
+
     @Override
     public PluginReturnValue run() {
         Process process = step.getProzess();
@@ -86,7 +88,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
 
                 Files.move(oldSourceFolder, newSourceFolder);
             }
-
+            // TODO search for file; get file with tei or TEI, but not tei_sd.xml, tei_paged.xml
             Path teiFile = Paths.get(newSourceFolder.toString(), "tei.xml");
 
             if (!StorageProvider.getInstance().isDirectory(textFolder)) {
@@ -204,7 +206,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                         }
 
                     }
-                    if (foundFile == null && pages.size() == createdFiles.size() ) {
+                    if (foundFile == null && pages.size() == createdFiles.size()) {
                         foundFile = createdFiles.get(imageNumberCounter);
                     }
                     imageNumberCounter++;
@@ -246,19 +248,19 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                 StorageProvider.getInstance().deleteDir(tempDirectory);
             } else {
                 // create plain text files
-
-                for (DocStruct page : pages) {
-                    for (Metadata md : page.getAllMetadata()) {
-                        if (md.getType().getName().equals("_tei_text")) {
-                            String filename = page.getImageName();
-                            filename = filename.substring(0, filename.lastIndexOf("."));
-                            Path txtFile = Paths.get(textFolder.toString(), filename + ".txt");
-                            byte[] strToBytes = md.getValue().getBytes();
-                            Files.write(txtFile, strToBytes);
+                if (exportDataWithoutTei) {
+                    for (DocStruct page : pages) {
+                        for (Metadata md : page.getAllMetadata()) {
+                            if (md.getType().getName().equals("_tei_text")) {
+                                String filename = page.getImageName();
+                                filename = filename.substring(0, filename.lastIndexOf("."));
+                                Path txtFile = Paths.get(textFolder.toString(), filename + ".txt");
+                                byte[] strToBytes = md.getValue().getBytes();
+                                Files.write(txtFile, strToBytes);
+                            }
                         }
                     }
                 }
-
             }
         } catch (ReadException | PreferencesException | WriteException | IOException | InterruptedException | SwapException | DAOException e) {
             log.error(e);
@@ -339,7 +341,5 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
         namespaces.add(xml);
         return namespaces;
     }
-
-
 
 }
