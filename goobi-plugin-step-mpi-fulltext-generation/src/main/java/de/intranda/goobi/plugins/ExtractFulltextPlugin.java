@@ -153,8 +153,20 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
 
                 // check if file name matches pb id, get filename from facs attibute
                 int imageNumberCounter = 0;
+
+                int expextedNumberOfPages = 0;
+                for (DocStruct page : pages) {
+                    String imageName = page.getImageName();
+                    if (!imageName.startsWith("obj_img")) {
+                        expextedNumberOfPages++;
+                    }
+                }
                 for (DocStruct page : pages) {
                     String imageNo = null;
+                    String imageName = page.getImageName();
+                    if (imageName.startsWith("obj_img")) {
+                        continue;
+                    }
                     for (Metadata md : page.getAllMetadata()) {
                         if (md.getType().getName().equals("physPageNumber")) {
                             imageNo = md.getValue();
@@ -206,7 +218,11 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                         }
 
                     }
+<<<<<<< HEAD
                     if (foundFile == null && pages.size() <= createdFiles.size()) {
+=======
+                    if (foundFile == null && expextedNumberOfPages == createdFiles.size()) {
+>>>>>>> branch 'master' of git@gitea.intranda.com:goobi-workflow/goobi-plugin-step-mpi-fulltext-generation.git
                         foundFile = createdFiles.get(imageNumberCounter);
                     }
                     imageNumberCounter++;
