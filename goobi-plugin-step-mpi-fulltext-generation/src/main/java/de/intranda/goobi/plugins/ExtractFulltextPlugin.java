@@ -218,11 +218,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                         }
 
                     }
-<<<<<<< HEAD
                     if (foundFile == null && pages.size() <= createdFiles.size()) {
-=======
-                    if (foundFile == null && expextedNumberOfPages == createdFiles.size()) {
->>>>>>> branch 'master' of git@gitea.intranda.com:goobi-workflow/goobi-plugin-step-mpi-fulltext-generation.git
                         foundFile = createdFiles.get(imageNumberCounter);
                     }
                     imageNumberCounter++;
