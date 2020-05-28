@@ -187,6 +187,9 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                         default:
                             suffix = "_" + imageNo + ".html";
                     }
+                    
+                    //for TEI-files from MPIWG:
+                    String strAlternative = "page"+imageNo+".html";
 
                     String txtFilename = page.getImageName();
                     txtFilename = txtFilename.substring(0, txtFilename.lastIndexOf(".")) + ".txt";
@@ -194,8 +197,9 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                     Path foundFile = null;
                     for (Path createdFile : createdFiles) {
                         // if file is named after expected filename
-                        if (createdFile.getFileName().toString().endsWith(suffix)) {
+                        if (createdFile.getFileName().toString().endsWith(suffix) || createdFile.getFileName().toString().contentEquals(strAlternative)) {
                             foundFile = createdFile;
+                            break;
                         }
                     }
                     if (foundFile == null) {
@@ -218,7 +222,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                         }
 
                     }
-                    if (foundFile == null && pages.size() <= createdFiles.size()) {
+                    if (foundFile == null && pages.size() == createdFiles.size()) {
                         foundFile = createdFiles.get(imageNumberCounter);
                     }
                     imageNumberCounter++;
