@@ -192,7 +192,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
 
                         XPathExpression<Element> expr = xpathFactory.compile("//tei:pb", Filters.element(), null, namespaces);
                         List<Element> pbList = expr.evaluate(rootElement);
-                        if (pbList != null && !pbList.isEmpty()) {
+                        if (pbList != null && pbList.size() > imageNumberCounter) {
                             Element pb = pbList.get(imageNumberCounter);
                             String id = pb.getAttributeValue("id", xml);
                             if (StringUtils.isNotBlank(id)) {
@@ -206,7 +206,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                         }
 
                     }
-                    if (foundFile == null && pages.size() == createdFiles.size()) {
+                    if (foundFile == null && pages.size() <= createdFiles.size()) {
                         foundFile = createdFiles.get(imageNumberCounter);
                     }
                     imageNumberCounter++;
