@@ -157,14 +157,14 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                 int expextedNumberOfPages = 0;
                 for (DocStruct page : pages) {
                     String imageName = page.getImageName();
-                    if (!imageName.startsWith("obj_img")) {
+                    if (!imageName.startsWith("obj_img")) { // && !imageName.startsWith("000.jpg")) {
                         expextedNumberOfPages++;
                     }
                 }
                 for (DocStruct page : pages) {
                     String imageNo = null;
                     String imageName = page.getImageName();
-                    if (imageName.startsWith("obj_img")) {
+                    if (imageName.startsWith("obj_img")) { // || imageName.startsWith("000.jpg")) {
                         continue;
                     }
                     for (Metadata md : page.getAllMetadata()) {
@@ -174,18 +174,23 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                     }
 
                     String suffix = null;
+                    String strPage = null;
                     switch (imageNo.length()) {
                         case 1:
                             suffix = "_000" + imageNo + ".html";
+                            strPage = "00"+imageNo;
                             break;
                         case 2:
                             suffix = "_00" + imageNo + ".html";
+                            strPage = "0"+imageNo;
                             break;
                         case 3:
                             suffix = "_0" + imageNo + ".html";
+                            strPage = imageNo;
                             break;
                         default:
                             suffix = "_" + imageNo + ".html";
+                            strPage = imageNo;
                     }
                     
                     //for TEI-files from MPIWG:
@@ -194,11 +199,17 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                     String txtFilename = page.getImageName();
                     txtFilename = txtFilename.substring(0, txtFilename.lastIndexOf(".")) + ".txt";
 
+                    String txtAltFilename = strPage + ".txt";
+                    
                     Path foundFile = null;
                     for (Path createdFile : createdFiles) {
                         // if file is named after expected filename
                         if (createdFile.getFileName().toString().endsWith(suffix) || createdFile.getFileName().toString().contentEquals(strAlternative)) {
                             foundFile = createdFile;
+                            
+                            if ( createdFile.getFileName().toString().contentEquals(strAlternative)) {
+                                txtFilename = txtAltFilename;
+                            }
                             break;
                         }
                     }
