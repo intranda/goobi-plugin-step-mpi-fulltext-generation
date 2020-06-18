@@ -199,7 +199,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                     String txtFilename = page.getImageName();
                     txtFilename = txtFilename.substring(0, txtFilename.lastIndexOf(".")) + ".txt";
 
-                    String txtAltFilename = strPage + ".txt";
+                    String txtAltFilename = imageName.replace(".jpg", ".txt");
                     
                     Path foundFile = null;
                     for (Path createdFile : createdFiles) {
