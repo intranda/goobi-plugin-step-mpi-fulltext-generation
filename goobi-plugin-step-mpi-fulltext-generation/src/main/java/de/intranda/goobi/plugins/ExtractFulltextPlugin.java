@@ -88,6 +88,16 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
 
                 Files.move(oldSourceFolder, newSourceFolder);
             }
+
+            List<Path> filesInSourceFolder = StorageProvider.getInstance().listFiles(newSourceFolder.toString());
+            for (Path file : filesInSourceFolder) {
+                if (!file.getFileName().toString().equals("tei.xml")) {
+                    // move it to parent folder
+                    Path destination = Paths.get(process.getImagesDirectory(), file.getFileName().toString());
+                    Files.move(file, destination);
+                }
+            }
+
             // TODO search for file; get file with tei or TEI, but not tei_sd.xml, tei_paged.xml
             Path teiFile = Paths.get(newSourceFolder.toString(), "tei.xml");
 
@@ -178,11 +188,11 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                     switch (imageNo.length()) {
                         case 1:
                             suffix = "_000" + imageNo + ".html";
-                            strPage = "00"+imageNo;
+                            strPage = "00" + imageNo;
                             break;
                         case 2:
                             suffix = "_00" + imageNo + ".html";
-                            strPage = "0"+imageNo;
+                            strPage = "0" + imageNo;
                             break;
                         case 3:
                             suffix = "_0" + imageNo + ".html";
@@ -192,22 +202,23 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                             suffix = "_" + imageNo + ".html";
                             strPage = imageNo;
                     }
-                    
+
                     //for TEI-files from MPIWG:
-                    String strAlternative = "page"+imageNo+".html";
+                    String strAlternative = "page" + imageNo + ".html";
 
                     String txtFilename = page.getImageName();
                     txtFilename = txtFilename.substring(0, txtFilename.lastIndexOf(".")) + ".txt";
 
                     String txtAltFilename = imageName.replace(".jpg", ".txt");
-                    
+
                     Path foundFile = null;
                     for (Path createdFile : createdFiles) {
                         // if file is named after expected filename
-                        if (createdFile.getFileName().toString().endsWith(suffix) || createdFile.getFileName().toString().contentEquals(strAlternative)) {
+                        if (createdFile.getFileName().toString().endsWith(suffix)
+                                || createdFile.getFileName().toString().contentEquals(strAlternative)) {
                             foundFile = createdFile;
-                            
-                            if ( createdFile.getFileName().toString().contentEquals(strAlternative)) {
+
+                            if (createdFile.getFileName().toString().contentEquals(strAlternative)) {
                                 txtFilename = txtAltFilename;
                             }
                             break;
