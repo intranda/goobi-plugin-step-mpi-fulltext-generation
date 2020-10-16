@@ -93,7 +93,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
             for (Path file : filesInSourceFolder) {
                 if (!file.getFileName().toString().equals("tei.xml")) {
                     // move it to parent folder
-                    Path destination = Paths.get(process.getImagesDirectory(), file.getFileName().toString());
+                    Path destination = Paths.get(process.getProcessDataDirectory(), file.getFileName().toString());
                     Files.move(file, destination);
                 }
             }
