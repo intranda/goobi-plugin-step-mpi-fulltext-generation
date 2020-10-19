@@ -120,7 +120,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                 String teiContent = new String(Files.readAllBytes(teiFile), charset);
                 teiContent = teiContent.replace(
                         "<?xml-model href=\"http://dlc-tei.net/p5/DLC-TEI.rng\" type=\"application/xml\" schematypens=\"http://relaxng.org/ns/structure/1.0\"?>",
-                        "");
+                        "").replace("<?oxygen RNGSchema=\"../../Schema/DLC-TEI_editura.rnc\" type=\"compact\"?>", "");
                 Files.write(teiFile, teiContent.getBytes(charset));
 
                 Path tempDirectory = Files.createTempDirectory(textFolder, "tmp");
@@ -298,8 +298,11 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                             }
                         }
                     }
+                } else {
+                    // TODO disable OCR Namen korrigieren
                 }
             }
+
         } catch (ReadException | PreferencesException | WriteException | IOException | InterruptedException | SwapException | DAOException e) {
             log.error(e);
             return PluginReturnValue.ERROR;
