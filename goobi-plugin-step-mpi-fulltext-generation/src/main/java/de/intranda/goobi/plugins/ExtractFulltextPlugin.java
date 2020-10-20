@@ -2,6 +2,7 @@ package de.intranda.goobi.plugins;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
@@ -276,7 +277,9 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                             doc2.setRootElement(div);
                             XMLOutputter xmlOutput = new XMLOutputter();
                             xmlOutput.setFormat(Format.getPrettyFormat());
-                            xmlOutput.output(doc2, new FileWriter(Paths.get(textFolder.toString(), txtFilename.toString()).toString()));
+                            try (Writer w = new FileWriter(Paths.get(textFolder.toString(), txtFilename.toString()).toString())) {
+                                xmlOutput.output(doc2,w);
+                            }
                         } catch (JDOMException e) {
                             log.error(e);
                         }
