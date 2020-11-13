@@ -265,6 +265,9 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                             }
                             // copy content into a new div element
                             Element div = new Element("div");
+                            if (process.getTitel().startsWith("khi_tn")) {
+                                div.setAttribute("class", "khi-tn-fulltext");
+                            }
                             List<Element> content = body.getChildren();
                             for (Element e : content) {
                                 Element copy = e.clone();
