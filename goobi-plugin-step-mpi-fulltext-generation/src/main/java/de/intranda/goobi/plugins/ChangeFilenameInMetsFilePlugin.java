@@ -53,7 +53,7 @@ public class ChangeFilenameInMetsFilePlugin implements IStepPluginVersion2 {
                             if (urn.contains(".")) {
                                 urn = urn.substring(0, urn.indexOf("."));
                             }
-                            urn = urn.replaceAll("\\W", "_");
+                            urn = urn.replace("=", "_").replace("+", "_");
                             // Dateinamen ermitteln
                             for (String image : imageNames) {
                                 String prefix = image.substring(0, image.indexOf("."));
