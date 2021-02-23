@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.lang.StringUtils;
 import org.goobi.beans.Process;
@@ -66,6 +67,9 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
 
     private Namespace tei = Namespace.getNamespace("tei", "http://www.tei-c.org/ns/1.0");
     private Namespace xml = Namespace.getNamespace("xml", "http://www.w3.org/XML/1998/namespace");
+    private Namespace escidocMetadataRecords = Namespace.getNamespace("escidocMetadataRecords", "http://www.escidoc.de/schemas/metadatarecords/0.5");
+    private Namespace mets = Namespace.getNamespace("mets", "http://www.loc.gov/METS/");
+
     private XPathFactory xpathFactory = XPathFactory.instance();
 
     private boolean exportDataWithoutTei = false;
@@ -99,7 +103,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                 }
             }
 
-            // TODO search for file; get file with tei or TEI, but not tei_sd.xml, tei_paged.xml
+            // search for file; get file with tei or TEI, but not tei_sd.xml, tei_paged.xml
             Path teiFile = Paths.get(newSourceFolder.toString(), "tei.xml");
 
             if (!StorageProvider.getInstance().isDirectory(textFolder)) {
@@ -127,7 +131,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                 Path tempDirectory = Files.createTempDirectory(textFolder, "tmp");
 
                 ProcessBuilder processBuilder = new ProcessBuilder();
-                processBuilder.command("/opt/digiverso/goobi/xslt/dlc-converter/bin/teitohtml", teiFile.toString(),
+                processBuilder.command("/opt/digiverso/goobi/xslt/dlc-converter/bin/teitoxhtml2", teiFile.toString(),
                         Paths.get(tempDirectory.toString(), "tmp-xml").toString());
                 java.lang.Process proc = processBuilder.start();
                 if (proc.waitFor() != 0) {
@@ -135,6 +139,29 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                 }
 
                 SAXBuilder builder = new SAXBuilder();
+
+                // read item.xml to get alternative name form
+                Path itemXml = Paths.get(process.getImagesDirectory(), "item.xml");
+                Map<String, String> oldFilenameMap = new HashMap<>();
+
+                try {
+                    Element escidocItem = builder.build(itemXml.toFile()).getRootElement();
+                    Element mdRecords = escidocItem.getChild("md-records", escidocMetadataRecords);
+                    Element mdRecord = mdRecords.getChild("md-record", escidocMetadataRecords);
+                    Element metsElement = mdRecord.getChild("mets", mets);
+                    Element structMap = metsElement.getChild("structMap", mets);
+                    Element metsDiv = structMap.getChild("div", mets);
+                    List<Element> images = metsDiv.getChildren();
+                    for (Element image: images) {
+                        String oldnameWithoutExtension = image.getAttributeValue("ID");
+                        String currentName = image.getAttributeValue("LABEL").replace("=", "_").replace("+", "_");
+                        oldFilenameMap.put(currentName, oldnameWithoutExtension);
+                    }
+                } catch (JDOMException e1) {
+                    log.error(e1);
+                }
+
+
 
                 // ignore facs.* files
                 List<Path> createdFiles = StorageProvider.getInstance().listFiles(tempDirectory.toString(), fulltextFileFilter);
@@ -206,26 +233,39 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
 
                     //for TEI-files from MPIWG:
                     String strAlternative = "page" + imageNo + ".html";
-
+                    String oldFilenameWithoutExtension = oldFilenameMap.get(imageName);
                     String txtFilename = page.getImageName();
                     txtFilename = txtFilename.substring(0, txtFilename.lastIndexOf(".")) + ".txt";
 
                     String txtAltFilename = imageName.replace(".jpg", ".txt").replace(".tif", ".txt");
 
                     Path foundFile = null;
-                    for (Path createdFile : createdFiles) {
-                        // if file is named after expected filename
-                        if (createdFile.getFileName().toString().endsWith(suffix)
-                                || createdFile.getFileName().toString().contentEquals(strAlternative)) {
-                            foundFile = createdFile;
+                    // 1.) file is named after old naming convention
+                    if (StringUtils.isNotBlank(oldFilenameWithoutExtension)) {
+                        String oldFilename = oldFilenameWithoutExtension + ".html";
 
-                            if (createdFile.getFileName().toString().contentEquals(strAlternative)) {
-                                txtFilename = txtAltFilename;
+                        for (Path createdFile : createdFiles) {
+                            if (createdFile.getFileName().toString().equals(oldFilename)) {
+                                foundFile = createdFile;
                             }
-                            break;
                         }
                     }
                     if (foundFile == null) {
+                        for (Path createdFile : createdFiles) {
+                            // 2.) if file is named after current filename
+                            if (createdFile.getFileName().toString().endsWith(suffix)
+                                    || createdFile.getFileName().toString().contentEquals(strAlternative)) {
+                                foundFile = createdFile;
+
+                                if (createdFile.getFileName().toString().contentEquals(strAlternative)) {
+                                    txtFilename = txtAltFilename;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    if (foundFile == null) {
+                        // 3.) different naming rule
                         // try to get it from element in tei file
                         //                        String imageName = page.getImageName(); // B836F1_001_1885_0229.jpg
 
@@ -281,7 +321,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                             XMLOutputter xmlOutput = new XMLOutputter();
                             xmlOutput.setFormat(Format.getPrettyFormat());
                             try (Writer w = new FileWriter(Paths.get(textFolder.toString(), txtFilename.toString()).toString())) {
-                                xmlOutput.output(doc2,w);
+                                xmlOutput.output(doc2, w);
                             }
                         } catch (JDOMException e) {
                             log.error(e);
