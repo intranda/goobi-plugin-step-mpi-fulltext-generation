@@ -59,7 +59,7 @@ public class ChangeProjectPlugin implements IStepPluginVersion2 {
                 }
             } else if (process.getTitel().contains("mpirg_escidoc")) {
                 try {
-                    newProject = ProjectManager.getProjectByName("MPI für europäische Rechtsgeschichte DLC Import");
+                    newProject = ProjectManager.getProjectByName("MPI für Rechtsgeschichte und Rechtstheorie DLC Import");
                 } catch (DAOException e) {
                     log.error(e);
                 }
