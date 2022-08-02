@@ -37,7 +37,6 @@ import org.jdom2.xpath.XPathExpression;
 import org.jdom2.xpath.XPathFactory;
 
 import de.sub.goobi.helper.StorageProvider;
-import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import lombok.Getter;
 import lombok.extern.log4j.Log4j2;
@@ -47,7 +46,6 @@ import ugh.dl.Fileformat;
 import ugh.dl.Metadata;
 import ugh.exceptions.PreferencesException;
 import ugh.exceptions.ReadException;
-import ugh.exceptions.WriteException;
 
 @Log4j2
 @PluginImplementation
@@ -349,7 +347,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                 }
             }
 
-        } catch (ReadException | PreferencesException | WriteException | IOException | InterruptedException | SwapException | DAOException e) {
+        } catch (ReadException | PreferencesException  | IOException | InterruptedException | SwapException  e) {
             log.error(e);
             return PluginReturnValue.ERROR;
         }
