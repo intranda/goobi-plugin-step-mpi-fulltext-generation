@@ -13,7 +13,6 @@ import org.goobi.production.enums.StepReturnValue;
 import org.goobi.production.plugin.interfaces.IStepPluginVersion2;
 
 import de.sub.goobi.helper.StorageProvider;
-import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.helper.exceptions.SwapException;
 import lombok.extern.log4j.Log4j2;
 import net.xeoh.plugins.base.annotations.PluginImplementation;
@@ -70,7 +69,7 @@ public class ChangeFilenameInMetsFilePlugin implements IStepPluginVersion2 {
             }
 
             process.writeMetadataFile(ff);
-        } catch (ReadException | PreferencesException | WriteException | IOException | InterruptedException | SwapException | DAOException e) {
+        } catch (ReadException | PreferencesException | WriteException | IOException | SwapException e) {
             log.error(e);
             return false;
         }
