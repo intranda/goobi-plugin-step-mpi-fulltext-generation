@@ -1,9 +1,7 @@
 package de.intranda.goobi.plugins;
 
-import java.util.Date;
 import java.util.HashMap;
 
-import org.goobi.beans.LogEntry;
 import org.goobi.beans.Process;
 import org.goobi.beans.Project;
 import org.goobi.beans.Step;
@@ -14,6 +12,7 @@ import org.goobi.production.enums.PluginType;
 import org.goobi.production.enums.StepReturnValue;
 import org.goobi.production.plugin.interfaces.IStepPluginVersion2;
 
+import de.sub.goobi.helper.Helper;
 import de.sub.goobi.helper.exceptions.DAOException;
 import de.sub.goobi.persistence.managers.ProcessManager;
 import de.sub.goobi.persistence.managers.ProjectManager;
@@ -69,16 +68,10 @@ public class ChangeProjectPlugin implements IStepPluginVersion2 {
 
             process.setProjekt(newProject);
             process.setProjectId(newProject.getId());
-            LogEntry entry = new LogEntry();
-            entry.setContent("Automatic project change after import");
-            entry.setCreationDate(new Date());
-            entry.setProcessId(process.getId());
-            entry.setType(LogType.DEBUG);
-            entry.setUserName("-");
-            process.getProcessLog().add(entry);
 
             ProcessManager.saveProcessInformation(process);
 
+            Helper.addMessageToProcessJournal(process.getId(), LogType.DEBUG, "Automatic project change after import", "-");
         }
 
         return PluginReturnValue.FINISH;
