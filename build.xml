@@ -3,6 +3,6 @@
 		<exec executable="mvn">
 			<arg value="package"/>
 		</exec>
-		<copy file="target/plugin_intranda_step_mpi-fulltext-generation.jar" todir="/opt/digiverso/goobi/plugins/step/"/>
+		<copy file="module-base/target/plugin-step-mpi-fulltext-generation-base.jar" todir="/opt/digiverso/goobi/plugins/step/"/>
 	</target>
 </project>
