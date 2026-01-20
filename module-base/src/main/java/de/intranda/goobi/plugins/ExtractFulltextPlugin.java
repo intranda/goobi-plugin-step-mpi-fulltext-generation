@@ -235,7 +235,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                     String txtFilename = page.getImageName();
                     txtFilename = txtFilename.substring(0, txtFilename.lastIndexOf(".")) + ".txt";
 
-                    String txtAltFilename = imageName.replace(".jpg", ".txt").replace(".png", ".txt").replace(".tif", ".txt");
+                    String txtAltFilename = imageName.replace(".jpg", ".txt").replace(".png", ".txt").replace(".jp2", ".txt").replace(".tif", ".txt");
 
                     Path foundFile = null;
                     // 1.) file is named after old naming convention
