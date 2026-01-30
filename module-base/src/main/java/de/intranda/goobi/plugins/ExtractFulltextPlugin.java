@@ -94,7 +94,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
 
             List<Path> filesInSourceFolder = StorageProvider.getInstance().listFiles(newSourceFolder.toString());
             for (Path file : filesInSourceFolder) {
-                if (!file.getFileName().toString().equals("tei.xml")) {
+                if (!"tei.xml".equals(file.getFileName().toString())) {
                     // move it to parent folder
                     Path destination = Paths.get(process.getProcessDataDirectory(), file.getFileName().toString());
                     Files.move(file, destination);
@@ -142,29 +142,29 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                 Path itemXml = Paths.get(process.getImagesDirectory(), "item.xml");
                 Map<String, String> oldFilenameMap = new HashMap<>();
 
-                try {
-                    Element escidocItem = builder.build(itemXml.toFile()).getRootElement();
-                    Element mdRecords = escidocItem.getChild("md-records", escidocMetadataRecords);
-                    Element mdRecord = mdRecords.getChild("md-record", escidocMetadataRecords);
-                    Element metsElement = mdRecord.getChild("mets", mets);
-                    Element structMap = metsElement.getChild("structMap", mets);
-                    Element metsDiv = structMap.getChild("div", mets);
-                    List<Element> images = metsDiv.getChildren();
-                    for (Element image: images) {
-                        String oldnameWithoutExtension = image.getAttributeValue("ID");
-                        String currentName = image.getAttributeValue("LABEL").replace("=", "_").replace("+", "_");
-                        oldFilenameMap.put(currentName, oldnameWithoutExtension);
+                if (StorageProvider.getInstance().isFileExists(itemXml)) {
+                    try {
+                        Element escidocItem = builder.build(itemXml.toFile()).getRootElement();
+                        Element mdRecords = escidocItem.getChild("md-records", escidocMetadataRecords);
+                        Element mdRecord = mdRecords.getChild("md-record", escidocMetadataRecords);
+                        Element metsElement = mdRecord.getChild("mets", mets);
+                        Element structMap = metsElement.getChild("structMap", mets);
+                        Element metsDiv = structMap.getChild("div", mets);
+                        List<Element> images = metsDiv.getChildren();
+                        for (Element image : images) {
+                            String oldnameWithoutExtension = image.getAttributeValue("ID");
+                            String currentName = image.getAttributeValue("LABEL").replace("=", "_").replace("+", "_");
+                            oldFilenameMap.put(currentName, oldnameWithoutExtension);
+                        }
+                    } catch (JDOMException e1) {
+                        log.error(e1);
                     }
-                } catch (JDOMException e1) {
-                    log.error(e1);
                 }
-
-
 
                 // ignore facs.* files
                 List<Path> createdFiles = StorageProvider.getInstance().listFiles(tempDirectory.toString(), fulltextFileFilter);
                 if (!createdFiles.isEmpty()) {
-                    if (createdFiles.get(0).getFileName().toString().equals("page1.html")) {
+                    if ("page1.html".equals(createdFiles.get(0).getFileName().toString())) {
                         Collections.sort(createdFiles, new Comparator<Path>() {
 
                             @Override
@@ -204,7 +204,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                         continue;
                     }
                     for (Metadata md : page.getAllMetadata()) {
-                        if (md.getType().getName().equals("physPageNumber")) {
+                        if ("physPageNumber".equals(md.getType().getName())) {
                             imageNo = md.getValue();
                         }
                     }
@@ -235,7 +235,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                     String txtFilename = page.getImageName();
                     txtFilename = txtFilename.substring(0, txtFilename.lastIndexOf(".")) + ".txt";
 
-                    String txtAltFilename = imageName.replace(".jpg", ".txt").replace(".tif", ".txt");
+                    String txtAltFilename = imageName.replace(".jpg", ".txt").replace(".png", ".txt").replace(".jp2", ".txt").replace(".tif", ".txt");
 
                     Path foundFile = null;
                     // 1.) file is named after old naming convention
@@ -296,7 +296,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                             Element root = doc.getRootElement();
                             Element body = null;
                             for (Element child : root.getChildren()) {
-                                if (child.getName().equals("body")) {
+                                if ("body".equals(child.getName())) {
                                     body = child;
                                 }
 
@@ -328,26 +328,24 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
                 }
 
                 StorageProvider.getInstance().deleteDir(tempDirectory);
-            } else {
-                // create plain text files
-                if (exportDataWithoutTei) {
-                    for (DocStruct page : pages) {
-                        for (Metadata md : page.getAllMetadata()) {
-                            if (md.getType().getName().equals("_tei_text")) {
-                                String filename = page.getImageName();
-                                filename = filename.substring(0, filename.lastIndexOf("."));
-                                Path txtFile = Paths.get(textFolder.toString(), filename + ".txt");
-                                byte[] strToBytes = md.getValue().getBytes();
-                                Files.write(txtFile, strToBytes);
-                            }
+            } else // create plain text files
+            if (exportDataWithoutTei) {
+                for (DocStruct page : pages) {
+                    for (Metadata md : page.getAllMetadata()) {
+                        if ("_tei_text".equals(md.getType().getName())) {
+                            String filename = page.getImageName();
+                            filename = filename.substring(0, filename.lastIndexOf("."));
+                            Path txtFile = Paths.get(textFolder.toString(), filename + ".txt");
+                            byte[] strToBytes = md.getValue().getBytes();
+                            Files.write(txtFile, strToBytes);
                         }
                     }
-                } else {
-                    // TODO disable OCR Namen korrigieren
                 }
+            } else {
+                // TODO disable OCR Namen korrigieren
             }
 
-        } catch (ReadException | PreferencesException  | IOException | InterruptedException | SwapException  e) {
+        } catch (ReadException | PreferencesException | IOException | InterruptedException | SwapException e) {
             log.error(e);
             return PluginReturnValue.ERROR;
         }
@@ -395,7 +393,7 @@ public class ExtractFulltextPlugin implements IStepPluginVersion2 {
         return 0;
     }
 
-    public static final DirectoryStream.Filter<Path> fulltextFileFilter = new DirectoryStream.Filter<Path>() {
+    public static final DirectoryStream.Filter<Path> fulltextFileFilter = new DirectoryStream.Filter<>() {
         @Override
         public boolean accept(Path path) {
             return !path.getFileName().toString().endsWith("facs.html") && !path.getFileName().toString().endsWith("xml");
