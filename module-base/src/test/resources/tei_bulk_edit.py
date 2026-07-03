@@ -21,8 +21,11 @@ import shutil
 TEI = 'http://www.tei-c.org/ns/1.0'
 T = lambda name: f'{{{TEI}}}{name}'
 
-CONTACT_TEXT = (
-"Note: Due to technical issues, not all data on the Diaskeué is accessible. Within the framework of the project, the coin descriptions from Caesar to Geta have been processed (Diaskeué vols. 2 to 6). Please get in touch if you have any questions regarding these coin descriptions: volker.heenes@icloud.com"
+CONTACT_TEXT_EN = (
+"Note: Due to technical issues, not all data relating to Diaskeué is currently accessible. As part of the project, the coin descriptions from Caesar to Geta have been processed (Diaskeué volumes 2 to 6). Please get in touch if you have any questions regarding these coin descriptions: volker.heenes@icloud.com"
+)
+CONTACT_TEXT_DE = (
+"Anmerkung: Aufgrund technischer Probleme sind nicht alle Daten zur Diaskeué zugänglich. Im Rahmen des Projekts wurden die Münzbeschreibungen von Caesar bis Geta bearbeitet (Diaskeué Bände 2 bis 6). Bitte melden Sie sich, falls Sie Fragen zu diesen Münzbeschreibungen haben: volker.heenes@icloud.com"
 )
 
 CENSUS_ID   = 'CENSUS–ID:'   # en-dash
@@ -96,16 +99,19 @@ def process(filepath):
                 counts['diaskeue_del'] += 1
                 second_text = ''  # fällt durch zu Regel 5
 
-            # Regel 5 – Kontakttext immer einfügen (bei vorhandenem Inhalt neue Zeile)
+            # Regel 5 – Kontakttext (EN + DE) immer einfügen (bei vorhandenem Inhalt neue Zeile)
             cell2 = cells[1]
             if not second_text:
                 for child in list(cell2):
                     cell2.remove(child)
-                cell2.text = CONTACT_TEXT
-            else:
-                children = list(cell2)
+                cell2.text = CONTACT_TEXT_EN
                 lb = etree.SubElement(cell2, T('lb'))
-                lb.tail = CONTACT_TEXT
+                lb.tail = CONTACT_TEXT_DE
+            else:
+                lb_en = etree.SubElement(cell2, T('lb'))
+                lb_en.tail = CONTACT_TEXT_EN
+                lb_de = etree.SubElement(cell2, T('lb'))
+                lb_de.tail = CONTACT_TEXT_DE
             counts['diaskeue_fill'] += 1
 
     # ── Regel 4 – EDITORIAL COMMENT Tabellen ─────────────────────────────────
