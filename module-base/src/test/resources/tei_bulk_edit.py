@@ -2,7 +2,8 @@
 """
 TEI-XML Massenbearbeitung – strada-projekt
 Regeln:
-  1) Alle <row> entfernen, deren erste cell "CENSUS–ID:" enthält
+  1) <row> mit erster cell "CENSUS–ID:" nur entfernen, wenn die zweite cell
+     einen census-ref OHNE ID enthält (target endet auf "censusID=" ohne Wert)
   2) Alle <row> entfernen, deren erste cell "PHAIDRA-ID:" enthält
   3) Alle <row> entfernen mit erster cell "DIASKEUE:" UND zweiter cell "fol. ???, br. ???"
   4) In EDITORIAL-COMMENT-Tabellen:
@@ -44,6 +45,17 @@ def direct_cells(row):
     return [c for c in row if c.tag == T('cell')]
 
 
+def census_ref_empty(cell):
+    """True, wenn ein census-ref ohne ID vorliegt (target endet auf 'censusID=' und kein Text)."""
+    for ref in cell.iter(T('ref')):
+        target = ref.get('target', '')
+        if 'census.bbaw.de' in target and 'censusID=' in target:
+            id_part = target.split('censusID=', 1)[1].strip()
+            text_part = ''.join(ref.itertext()).strip()
+            return not id_part and not text_part
+    return False
+
+
 def process(filepath):
     parser = etree.XMLParser(remove_blank_text=False, resolve_entities=False)
     tree = etree.parse(filepath, parser)
@@ -59,10 +71,11 @@ def process(filepath):
 
         first = cell_text(cells[0])
 
-        # Regel 1 – CENSUS–ID
+        # Regel 1 – CENSUS–ID: nur entfernen, wenn keine Census-ID vorhanden ist
         if first == CENSUS_ID:
-            row.getparent().remove(row)
-            counts['census'] += 1
+            if len(cells) > 1 and census_ref_empty(cells[1]):
+                row.getparent().remove(row)
+                counts['census'] += 1
             continue
 
         # Regel 2 – PHAIDRA-ID
