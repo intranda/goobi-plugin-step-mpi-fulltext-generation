@@ -5,7 +5,10 @@ Regeln:
   1) Alle <row> entfernen, deren erste cell "CENSUS–ID:" enthält
   2) Alle <row> entfernen, deren erste cell "PHAIDRA-ID:" enthält
   3) Alle <row> entfernen mit erster cell "DIASKEUE:" UND zweiter cell "fol. ???, br. ???"
-  4) In EDITORIAL-COMMENT-Tabellen: Zeilen "MANO ID – OBVERSE:", "MANO ID – REVERSE:", "SOURCE, ID:" entfernen
+  4) In EDITORIAL-COMMENT-Tabellen:
+       - "SOURCE, ID:"-Zeilen immer entfernen
+       - "MANO ID – OBVERSE:"-Zeile nur entfernen, wenn im <ref> "Volume 01, folio 005r" steht
+       - "MANO ID – REVERSE:"-Zeile nur entfernen, wenn im <ref> "Volume 01, folio 004r" steht
   5) DIASKEUE:-Zeilen mit leerer zweiter Zelle → Kontakttext einfügen
 """
 
@@ -25,7 +28,12 @@ CENSUS_ID   = 'CENSUS–ID:'   # en-dash
 PHAIDRA_ID  = 'PHAIDRA-ID:'
 DIASKEUE    = 'DIASKEUE:'
 EDITORIAL   = 'EDITORIAL COMMENT'
-ED_REMOVE   = {'MANO ID – OBVERSE:', 'MANO ID – REVERSE:', 'SOURCE, ID:'}
+ED_REMOVE   = {'SOURCE, ID:'}  # immer entfernen
+# MANO-ID-Zeilen nur entfernen, wenn im <ref> der Platzhalter-Vorgabewert steht
+MANO_REMOVE = {
+    'MANO ID – OBVERSE:': 'Volume 01, folio 005r',
+    'MANO ID – REVERSE:': 'Volume 01, folio 004r',
+}
 
 
 def cell_text(cell):
@@ -106,25 +114,35 @@ def process(filepath):
                     if row.tag != T('row'):
                         continue
                     cells = direct_cells(row)
-                    if cells and cell_text(cells[0]) in ED_REMOVE:
+                    if not cells:
+                        continue
+                    first = cell_text(cells[0])
+                    # SOURCE, ID: – immer entfernen
+                    if first in ED_REMOVE:
                         sib.remove(row)
                         counts['editorial'] += 1
+                    # MANO ID – OBVERSE/REVERSE: nur bei Platzhalter-Vorgabewert im <ref>
+                    elif first in MANO_REMOVE and len(cells) > 1:
+                        if MANO_REMOVE[first] in cell_text(cells[1]):
+                            sib.remove(row)
+                            counts['editorial'] += 1
                 break
 
     return tree, counts
 
 
 def main():
-    files = sorted(glob.glob('/home/robert/strada-projekt/tei-convert/xml/*.xml', recursive=True))
+    xml_dir = '/home/robert/git/goobi-plugin-step-mpi-fulltext-generation/module-base/src/test/resources/xml'
+    files = sorted(glob.glob(os.path.join(xml_dir, '*.xml'), recursive=True))
 
-    backup_root = '/home/robert/strada-projekt/tei-convert/xml_backup'
+    backup_root = os.path.join(os.path.dirname(xml_dir), 'xml_backup')
     os.makedirs(backup_root, exist_ok=True)
 
     total = dict(census=0, phaidra=0, diaskeue_del=0, editorial=0, diaskeue_fill=0)
 
     for filepath in files:
         # Backup anlegen
-        rel = os.path.relpath(filepath, '/home/robert/strada-projekt/xml')
+        rel = os.path.relpath(filepath, xml_dir)
         backup_path = os.path.join(backup_root, rel)
         os.makedirs(os.path.dirname(backup_path), exist_ok=True)
         shutil.copy2(filepath, backup_path)
