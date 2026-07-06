@@ -13,7 +13,7 @@ Regeln:
        - "MANO ID – REVERSE:"-Zeile nur entfernen, wenn im <ref> "Volume 01, folio 004r" steht
   5) Kontakttext (EN + DE) NUR in bestimmten Dateien (CONTACT_FILES) am Ende
      jeder Seite (getrennt durch <pb/>) einfügen, die mindestens eine <table>
-     enthält – als <div><p>EN<lb/>DE</p></div> unmittelbar vor dem nächsten <pb/>
+     enthält – als <note>EN<lb/>DE</note> unmittelbar vor dem nächsten <pb/>
 """
 
 from lxml import etree
@@ -67,14 +67,13 @@ def census_ref_empty(cell):
     return False
 
 
-def build_contact_div():
-    """<div><p>EN<lb/>DE</p></div> mit dem Kontakttext."""
-    div = etree.Element(T('div'))
-    p = etree.SubElement(div, T('p'))
-    p.text = CONTACT_TEXT_EN
-    lb = etree.SubElement(p, T('lb'))
+def build_contact_note():
+    """<note>EN<lb/>DE</note> mit dem Kontakttext."""
+    note = etree.Element(T('note'))
+    note.text = CONTACT_TEXT_EN
+    lb = etree.SubElement(note, T('lb'))
     lb.tail = CONTACT_TEXT_DE
-    return div
+    return note
 
 
 def insert_page_contacts(root):
@@ -96,11 +95,11 @@ def insert_page_contacts(root):
                 el = el.getnext()
 
             if has_table:
-                div = build_contact_div()
+                note = build_contact_note()
                 if next_pb is not None:
-                    next_pb.addprevious(div)   # ans Seitenende (vor nächstem pb)
+                    next_pb.addprevious(note)   # ans Seitenende (vor nächstem pb)
                 else:
-                    body.append(div)           # letzte Seite → ans Body-Ende
+                    body.append(note)           # letzte Seite → ans Body-Ende
                 n += 1
     return n
 
