@@ -11,9 +11,9 @@ Regeln:
        - "SOURCE, ID:"-Zeilen immer entfernen
        - "MANO ID – OBVERSE:"-Zeile nur entfernen, wenn im <ref> "Volume 01, folio 005r" steht
        - "MANO ID – REVERSE:"-Zeile nur entfernen, wenn im <ref> "Volume 01, folio 004r" steht
-  5) Kontakttext (EN + DE) NUR in bestimmten Dateien (CONTACT_FILES) am Ende
+  5) Kontakttext (EN) NUR in bestimmten Dateien (CONTACT_FILES) am Ende
      jeder Seite (getrennt durch <pb/>) einfügen, die mindestens eine <table>
-     enthält – als <note>EN<lb/>DE</note> unmittelbar vor dem nächsten <pb/>
+     enthält – als <note>EN</note> unmittelbar vor dem nächsten <pb/>
 """
 
 from lxml import etree
@@ -26,9 +26,6 @@ T = lambda name: f'{{{TEI}}}{name}'
 
 CONTACT_TEXT_EN = (
 "Note: Due to technical issues, not all data relating to Diaskeué is currently accessible. As part of the project, the coin descriptions from Caesar to Geta have been processed (Diaskeué volumes 2 to 6). Please get in touch if you have any questions regarding these coin descriptions: volker.heenes@icloud.com"
-)
-CONTACT_TEXT_DE = (
-"Anmerkung: Aufgrund technischer Probleme sind nicht alle Daten zur Diaskeué zugänglich. Im Rahmen des Projekts wurden die Münzbeschreibungen von Caesar bis Geta bearbeitet (Diaskeué Bände 2 bis 6). Bitte melden Sie sich, falls Sie Fragen zu diesen Münzbeschreibungen haben: volker.heenes@icloud.com"
 )
 
 CENSUS_ID   = 'CENSUS–ID:'   # en-dash
@@ -68,11 +65,9 @@ def census_ref_empty(cell):
 
 
 def build_contact_note():
-    """<note>EN<lb/>DE</note> mit dem Kontakttext."""
+    """<note>EN</note> mit dem Kontakttext."""
     note = etree.Element(T('note'))
     note.text = CONTACT_TEXT_EN
-    lb = etree.SubElement(note, T('lb'))
-    lb.tail = CONTACT_TEXT_DE
     return note
 
 
