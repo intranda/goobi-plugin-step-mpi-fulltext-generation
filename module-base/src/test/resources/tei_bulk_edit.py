@@ -5,12 +5,15 @@ Regeln:
   1) <row> mit erster cell "CENSUS–ID:" nur entfernen, wenn die zweite cell
      einen census-ref OHNE ID enthält (target endet auf "censusID=" ohne Wert)
   2) Alle <row> entfernen, deren erste cell "PHAIDRA-ID:" enthält
-  3) Alle <row> entfernen mit erster cell "DIASKEUE:" UND zweiter cell "fol. ???, br. ???"
+  3) Alle <row> vollständig entfernen mit erster cell "DIASKEUE:" UND
+     zweiter cell "fol. ???, br. ???"
   4) In EDITORIAL-COMMENT-Tabellen:
        - "SOURCE, ID:"-Zeilen immer entfernen
        - "MANO ID – OBVERSE:"-Zeile nur entfernen, wenn im <ref> "Volume 01, folio 005r" steht
        - "MANO ID – REVERSE:"-Zeile nur entfernen, wenn im <ref> "Volume 01, folio 004r" steht
-  5) DIASKEUE:-Zeilen mit leerer zweiter Zelle → Kontakttext einfügen
+  5) Kontakttext (EN + DE) NUR in bestimmten Dateien (CONTACT_FILES) am Ende
+     jeder Seite (getrennt durch <pb/>) einfügen, die mindestens eine <table>
+     enthält – als <div><p>EN<lb/>DE</p></div> unmittelbar vor dem nächsten <pb/>
 """
 
 from lxml import etree
@@ -32,6 +35,11 @@ CENSUS_ID   = 'CENSUS–ID:'   # en-dash
 PHAIDRA_ID  = 'PHAIDRA-ID:'
 DIASKEUE    = 'DIASKEUE:'
 EDITORIAL   = 'EDITORIAL COMMENT'
+
+# Regel 5: Kontakttext nur in diesen Dateien am Seitenende einfügen
+CONTACT_FILES = {
+    '285341.xml', '285342.xml', '285343.xml', '285344.xml', '285346.xml',
+}
 ED_REMOVE   = {'SOURCE, ID:'}  # immer entfernen
 # MANO-ID-Zeilen nur entfernen, wenn im <ref> der Platzhalter-Vorgabewert steht
 MANO_REMOVE = {
@@ -59,14 +67,52 @@ def census_ref_empty(cell):
     return False
 
 
+def build_contact_div():
+    """<div><p>EN<lb/>DE</p></div> mit dem Kontakttext."""
+    div = etree.Element(T('div'))
+    p = etree.SubElement(div, T('p'))
+    p.text = CONTACT_TEXT_EN
+    lb = etree.SubElement(p, T('lb'))
+    lb.tail = CONTACT_TEXT_DE
+    return div
+
+
+def insert_page_contacts(root):
+    """Fügt am Ende jeder Seite (Bereich ab <pb/> bis zum nächsten <pb/>), die
+    mindestens eine <table> enthält, den Kontakttext ein. Rückgabe: Anzahl."""
+    n = 0
+    for body in root.iter(T('body')):
+        pbs = [c for c in body if c.tag == T('pb')]
+        for i, pb in enumerate(pbs):
+            next_pb = pbs[i + 1] if i + 1 < len(pbs) else None
+
+            # Enthält diese Seite eine <table>?
+            has_table = False
+            el = pb.getnext()
+            while el is not None and el is not next_pb:
+                if el.tag == T('table') or el.find('.//' + T('table')) is not None:
+                    has_table = True
+                    break
+                el = el.getnext()
+
+            if has_table:
+                div = build_contact_div()
+                if next_pb is not None:
+                    next_pb.addprevious(div)   # ans Seitenende (vor nächstem pb)
+                else:
+                    body.append(div)           # letzte Seite → ans Body-Ende
+                n += 1
+    return n
+
+
 def process(filepath):
     parser = etree.XMLParser(remove_blank_text=False, resolve_entities=False)
     tree = etree.parse(filepath, parser)
     root = tree.getroot()
 
-    counts = dict(census=0, phaidra=0, diaskeue_del=0, editorial=0, diaskeue_fill=0)
+    counts = dict(census=0, phaidra=0, diaskeue=0, editorial=0, contact=0)
 
-    # ── Regeln 1, 2, 3, 5 (einmaliger Durchlauf über alle rows) ──────────────
+    # ── Regeln 1, 2, 3 (einmaliger Durchlauf über alle rows) ─────────────────
     for row in list(root.iter(T('row'))):
         cells = direct_cells(row)
         if not cells:
@@ -87,32 +133,13 @@ def process(filepath):
             counts['phaidra'] += 1
             continue
 
+        # Regel 3 – DIASKEUE: mit Platzhalter "fol. ???, br. ???" → Zeile entfernen
         if first == DIASKEUE and len(cells) > 1:
             second_text = cell_text(cells[1])
-
-            # Regel 3 – DIASKEUE mit Platzhalter fol. ???, br. ??? → Zelle leeren
             if 'fol. ???' in second_text and 'br. ???' in second_text:
-                cell2 = cells[1]
-                for child in list(cell2):
-                    cell2.remove(child)
-                cell2.text = None
-                counts['diaskeue_del'] += 1
-                second_text = ''  # fällt durch zu Regel 5
-
-            # Regel 5 – Kontakttext (EN + DE) immer einfügen (bei vorhandenem Inhalt neue Zeile)
-            cell2 = cells[1]
-            if not second_text:
-                for child in list(cell2):
-                    cell2.remove(child)
-                cell2.text = CONTACT_TEXT_EN
-                lb = etree.SubElement(cell2, T('lb'))
-                lb.tail = CONTACT_TEXT_DE
-            else:
-                lb_en = etree.SubElement(cell2, T('lb'))
-                lb_en.tail = CONTACT_TEXT_EN
-                lb_de = etree.SubElement(cell2, T('lb'))
-                lb_de.tail = CONTACT_TEXT_DE
-            counts['diaskeue_fill'] += 1
+                row.getparent().remove(row)
+                counts['diaskeue'] += 1
+            continue
 
     # ── Regel 4 – EDITORIAL COMMENT Tabellen ─────────────────────────────────
     for label in root.iter(T('label')):
@@ -147,6 +174,10 @@ def process(filepath):
                             counts['editorial'] += 1
                 break
 
+    # ── Regel 5 – Kontakttext am Seitenende (nur bestimmte Dateien) ──────────
+    if os.path.basename(filepath) in CONTACT_FILES:
+        counts['contact'] = insert_page_contacts(root)
+
     return tree, counts
 
 
@@ -157,7 +188,7 @@ def main():
     backup_root = os.path.join(os.path.dirname(xml_dir), 'xml_backup')
     os.makedirs(backup_root, exist_ok=True)
 
-    total = dict(census=0, phaidra=0, diaskeue_del=0, editorial=0, diaskeue_fill=0)
+    total = dict(census=0, phaidra=0, diaskeue=0, editorial=0, contact=0)
 
     for filepath in files:
         # Backup anlegen
@@ -179,9 +210,9 @@ def main():
                 f'{fname}: '
                 f'census={counts["census"]}  '
                 f'phaidra={counts["phaidra"]}  '
-                f'diaskeue_del={counts["diaskeue_del"]}  '
+                f'diaskeue={counts["diaskeue"]}  '
                 f'editorial={counts["editorial"]}  '
-                f'diaskeue_fill={counts["diaskeue_fill"]}'
+                f'contact={counts["contact"]}'
             )
 
     print()
@@ -190,9 +221,9 @@ def main():
         f'GESAMT:  '
         f'census={total["census"]}  '
         f'phaidra={total["phaidra"]}  '
-        f'diaskeue_del={total["diaskeue_del"]}  '
+        f'diaskeue={total["diaskeue"]}  '
         f'editorial={total["editorial"]}  '
-        f'diaskeue_fill={total["diaskeue_fill"]}'
+        f'contact={total["contact"]}'
     )
     print(f'Backup:  {backup_root}')
 
