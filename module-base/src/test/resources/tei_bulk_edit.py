@@ -35,7 +35,7 @@ EDITORIAL   = 'EDITORIAL COMMENT'
 
 # Regel 5: Kontakttext nur in diesen Dateien am Seitenende einfügen
 CONTACT_FILES = {
-    '285341.xml', '285342.xml', '285343.xml', '285344.xml', '285346.xml',
+    '285342.xml', '285343.xml', '285344.xml', '285346.xml',
 }
 ED_REMOVE   = {'SOURCE, ID:'}  # immer entfernen
 # MANO-ID-Zeilen nur entfernen, wenn im <ref> der Platzhalter-Vorgabewert steht
